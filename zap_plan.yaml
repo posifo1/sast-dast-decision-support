@@ -1,0 +1,55 @@
+# ZAP Automation Framework plan: OWASP Benchmark v1.2, scoped to the five
+# dissertation categories (SQLi, path traversal, command injection, LDAP
+# injection; crypto has no ZAP rule and is expected to score zero recall).
+#
+# Run (Benchmark must already be running on https://localhost:8443/benchmark/):
+#   docker run --rm --network host -v "$(pwd)":/zap/wrk:rw \
+#     ghcr.io/zaproxy/zaproxy:stable zap.sh -cmd -autorun /zap/wrk/zap_plan.yaml
+env:
+  contexts:
+    - name: benchmark
+      urls:
+        - https://localhost:8443/benchmark/
+      includePaths:
+        - https://localhost:8443/benchmark/.*
+  parameters:
+    failOnError: true
+    progressToStdout: true
+
+jobs:
+  - type: spider
+    parameters:
+      context: benchmark
+      maxDuration: 0          # no time limit: must reach every test case
+      maxDepth: 0
+      maxChildren: 0
+      threadCount: 4
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 0
+
+  - type: activeScan
+    parameters:
+      context: benchmark
+      maxRuleDurationInMins: 0
+      maxScanDurationInMins: 0
+      threadPerHost: 4
+    policyDefinition:
+      defaultStrength: medium
+      defaultThreshold: "off"   # disable every rule not listed below
+      rules:
+        - id: 40018             # SQL Injection
+          threshold: medium
+        - id: 6                 # Path Traversal
+          threshold: medium
+        - id: 90020             # Remote OS Command Injection
+          threshold: medium
+        - id: 40015             # LDAP Injection
+          threshold: medium
+
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: /zap/wrk
+      reportFile: zap_report
